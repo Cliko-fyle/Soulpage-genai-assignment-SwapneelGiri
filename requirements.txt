@@ -1,0 +1,14 @@
+langchain
+langchain-classic
+langchain-text-splitters
+langchain-community
+wikipedia-api
+transformers
+accelerate
+sentence-transformers
+duckduckgo-search
+wikipedia
+streamlit
+faiss-cpu
+ddgs
+langchain-openai
