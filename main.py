@@ -140,9 +140,10 @@ def ask(question):
 vectorestore = build_vs(populate_kb())
 
 vectorstore = FAISS.load_local(
-    "/data",
+    "./data",
     embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2"),
     allow_dangerous_deserialization=True
 )
+
 
 chain = qa_chain(vectorstore)
