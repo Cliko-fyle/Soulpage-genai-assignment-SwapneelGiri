@@ -51,7 +51,7 @@ def build_vs(kb):
   embedding_model = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
   splitter = RecursiveCharacterTextSplitter(
       chunk_size = 1000,
-      chunk_overlap = 100
+      chunk_overlap = 200
   )
 
   docs = []
@@ -83,15 +83,14 @@ llm = ChatOpenAI(
     base_url="https://api.groq.com/openai/v1",
     api_key=groq_api_key,
     temperature = 0.0,
-    top_p = 0.7,
+    top_p = 0.3,
     max_completion_tokens = 100)
 
 prompt_template = """
 You are a factual question-answer assistant specializing in Indian Nobel laureates.
 Use ONLY the retrieved context. Never guess or hallucinate.
 
-If the user uses pronouns like "he", "she", or "they", assume they refer to the
-person mentioned earlier in the conversation.
+If the user uses pronouns like "he", "she", or "they", assume they refer to the person mentioned earlier in the conversation.
 
 If the context doesn't contain the answer, say "I don't know".
 
@@ -120,7 +119,7 @@ def qa_chain(vectorstore, memory = None):
         output_key="answer"
         )
 
-  retriever = vectorstore.as_retriever(search_kwargs = {"k": 5})
+  retriever = vectorstore.as_retriever(search_kwargs = {"k": 8})
 
   retriever_chain = ConversationalRetrievalChain.from_llm(
       llm = llm,
@@ -147,5 +146,6 @@ vectorstore = FAISS.load_local(
 
 
 chain = qa_chain(vectorstore)
+
 
 
