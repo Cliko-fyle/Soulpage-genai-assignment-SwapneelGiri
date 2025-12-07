@@ -70,7 +70,7 @@ def build_vs(kb):
       texts = texts,
       embedding = embedding_model,
       metadatas = metadatas)
-  vectorstore.save_local("/data")
+  vectorstore.save_local("./data")
 
   return vectorstore
 
@@ -147,3 +147,4 @@ vectorstore = FAISS.load_local(
 
 
 chain = qa_chain(vectorstore)
+
