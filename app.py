@@ -26,7 +26,7 @@ Ask anything about Indian Nobel laureates!
 def load_vectorstore():
     try:
         vs = FAISS.load_local(
-            "/data",
+            "./data",
             embeddings=HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2"),
             allow_dangerous_deserialization=True
         )
@@ -61,4 +61,5 @@ for speaker, msg in st.session_state.chat_history:
         st.chat_message("user").write(msg)
     else:
         st.chat_message("assistant").write(msg)
+
 
