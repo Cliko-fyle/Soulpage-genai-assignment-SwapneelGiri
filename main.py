@@ -50,8 +50,8 @@ def populate_kb():
 def build_vs(kb):
   embedding_model = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
   splitter = RecursiveCharacterTextSplitter(
-      chunk_size = 400,
-      chunk_overlap = 50
+      chunk_size = 1000,
+      chunk_overlap = 100
   )
 
   docs = []
@@ -147,4 +147,5 @@ vectorstore = FAISS.load_local(
 
 
 chain = qa_chain(vectorstore)
+
 
