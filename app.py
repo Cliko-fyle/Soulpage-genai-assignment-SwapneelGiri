@@ -1,4 +1,5 @@
 import streamlit as st
+from langchain_classic.memory import ConversationBufferMemory
 from main import (
     populate_kb,
     build_vs,
@@ -39,8 +40,15 @@ def load_vectorstore():
 
 vectorstore = load_vectorstore()
 
-# Create QA Chain with Conversational Memory
-chain = qa_chain(vectorstore)
+if "memory" not in st.session_state:
+    st.session_state.memory = ConversationBufferMemory(
+        memory_key="chat_history",
+        return_messages=True,
+        output_key="answer"
+    )
+
+# Create QA Chain with persistent memory
+chain = qa_chain(vectorstore, memory=st.session_state.memory)
 
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
@@ -61,5 +69,6 @@ for speaker, msg in st.session_state.chat_history:
         st.chat_message("user").write(msg)
     else:
         st.chat_message("assistant").write(msg)
+
 
 
