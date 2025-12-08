@@ -182,18 +182,26 @@ def web_qa_chain(question, search_tool, memory):
   Question: {question}
   """
   )
-  rewrite_prompt = PromptTemplate(
-      input_variables=["chat_history", "question"],
-      template="""
-  Given the conversation below, rewrite the user question so that all pronouns and references are resolved with full context.
+ rewrite_prompt = PromptTemplate(
+    input_variables=["chat_history", "question"],
+    template="""
+You are a utility that REWRITES questions.
 
-  Chat history:
-  {chat_history}
+Your task:
+- Replace all pronouns (he, she, it, they, him, her, etc.) with the actual named entity from the chat history.
+- DO NOT explain anything.
+- DO NOT answer the question.
+- DO NOT add new information.
+- ONLY output the rewritten question as a single line.
 
-  Original question: {question}
+Chat history:
+{chat_history}
 
-  Ouput: Brief rewritten question only, fully qualified, no pronouns
-  """
+Original question:
+{question}
+
+Rewritten question (ONLY the rewritten question, no extra text):
+"""
   )
   # LLM chain
   chain = LLMChain(llm=llm, prompt=prompt)
@@ -217,3 +225,4 @@ def web_qa_chain(question, search_tool, memory):
 
   response = chain.run(question=rewritten, search_results=context)
   return response
+
