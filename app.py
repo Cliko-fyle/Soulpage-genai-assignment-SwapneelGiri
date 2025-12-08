@@ -19,7 +19,7 @@ st.set_page_config(
 st.title("Conversational Knowledge Bot")
 
 st.write("""
-Choose how you want the bot to answer your questions.
+Ask anything!
 """)
 
 # #============ MODE SELEcTION ============
@@ -67,7 +67,10 @@ Choose how you want the bot to answer your questions.
 #             answer = chain({"question": query})["answer"]
 #         st.session_state.chat_history.append(("You", query))
 #         st.session_state.chat_history.append(("Bot", answer))
-        
+@st.cache_resource
+def search_tool():
+    return web_search_tool()
+
 if "memory" not in st.session_state:
     st.session_state.memory = ConversationBufferMemory(
         memory_key="chat_history",
@@ -78,16 +81,13 @@ if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
     
 st.subheader("Web Search Mode")
-
-# Load DuckDuckGo tool
-search_tool = web_search_tool()
 query = st.chat_input("Ask anything (web search enabled):")
 
 if query:
     with st.spinner("Searching & thinking..."):
         answer = web_qa_chain(
             question=query,
-            search_tool=search_tool,
+            search_tool=search_tool(),
             memory=st.session_state.memory
         )
     st.session_state.chat_history.append(("You", query))
@@ -99,6 +99,7 @@ for speaker, msg in st.session_state.chat_history:
         st.chat_message("user").write(msg)
     else:
         st.chat_message("assistant").write(msg)
+
 
 
 
