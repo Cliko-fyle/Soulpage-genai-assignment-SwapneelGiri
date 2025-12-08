@@ -1,13 +1,6 @@
 import streamlit as st
 from langchain_classic.memory import ConversationBufferMemory
-from main import (
-    populate_kb,
-    build_vs,
-    qa_chain,
-    web_search_tool,
-    web_qa_chain,
-    FAISS,
-    HuggingFaceEmbeddings)
+from main import web_search_tool, web_qa_chain
 
 # Streamlit Setup
 st.set_page_config(
@@ -18,6 +11,51 @@ st.set_page_config(
 st.title("Conversational Knowledge Bot")
 
 st.write("""Ask anything!""")
+
+
+@st.cache_resource
+def search_tool():
+    return web_search_tool()
+
+if "memory" not in st.session_state:
+    st.session_state.memory = ConversationBufferMemory(
+        memory_key="chat_history",
+        input_key = "question",
+        output_key="output")
+
+# Initialize chat history for display
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+# Display chat history FIRST
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.write(message["content"])
+        
+# if "chat_history" not in st.session_state:
+#     st.session_state.chat_history = []
+
+query = st.chat_input("Ask anything (web search enabled):")
+
+if query:
+    # Display user message immediately
+    with st.chat_message("user"):
+        st.write(query)
+    st.session_state.messages.append({"role": "user", "content": query})
+    
+    # Get bot response
+    with st.chat_message("assistant"):
+        with st.spinner("Searching & thinking..."):
+            answer = web_qa_chain(
+                question=query,
+                search_tool=search_tool(),
+                memory=st.session_state.memory
+            )
+        st.write(answer)
+    
+    st.session_state.messages.append({"role": "assistant", "content": answer})
+    st.rerun()
+    
 
 # #============ MODE SELEcTION ============
 # mode = st.radio(
@@ -64,35 +102,4 @@ st.write("""Ask anything!""")
 #             answer = chain({"question": query})["answer"]
 #         st.session_state.chat_history.append(("You", query))
 #         st.session_state.chat_history.append(("Bot", answer))
-@st.cache_resource
-def search_tool():
-    return web_search_tool()
 
-if "memory" not in st.session_state:
-    st.session_state.memory = ConversationBufferMemory(
-        memory_key="chat_history",
-        return_messages=True,
-        output_key="answer")
-
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []
-    
-st.subheader("Web Search Mode")
-query = st.chat_input("Ask anything (web search enabled):")
-
-if query:
-    with st.spinner("Searching & thinking..."):
-        answer = web_qa_chain(
-            question=query,
-            search_tool=search_tool(),
-            memory=st.session_state.memory
-        )
-    st.session_state.chat_history.append(("You", query))
-    st.session_state.chat_history.append(("Bot", answer))
-        
-# Display Chat
-for speaker, msg in st.session_state.chat_history:
-    if speaker == "You":
-        st.chat_message("user").write(msg)
-    else:
-        st.chat_message("assistant").write(msg)
