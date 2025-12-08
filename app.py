@@ -22,80 +22,76 @@ st.write("""
 Choose how you want the bot to answer your questions.
 """)
 
-#============ MODE SELEcTION ============
-mode = st.radio(
-    "Select Mode:",
-    ["Static KB Mode", "Web Search Mode"],
-    index = None
-)
+# #============ MODE SELEcTION ============
+# mode = st.radio(
+#     "Select Mode:",
+#     ["Static KB Mode", "Web Search Mode"],
+#     index = None
+# )
 
-st.divider()
+# st.divider()
+    
 
-# Initialize chat history UI
+# #=========== STATIC KB MODE ==============
+# if mode == "Static KB Mode":
+#     st.subheader("Static Knowledge Base Mode")
+#     # initialize memory
+#     if "memory" not in st.session_state:
+#         st.session_state.memory = ConversationBufferMemory(
+#             memory_key="chat_history",
+#             return_messages=True,
+#             output_key="answer")
+
+#     @st.cache_resource(show_spinner=True)
+#     def load_vectorstore():
+#         try:
+#             vs = FAISS.load_local(
+#                 "./data",
+#                 embeddings=HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2"),
+#                 allow_dangerous_deserialization=True
+#             )
+#             return vs
+#         except:
+#             kb = populate_kb()
+#             vs = build_vs(kb)
+#             return vs
+
+#     vectorstore = load_vectorstore()
+
+#     # Build Conversational retrieval Chain
+#     chain = qa_chain(vectorstore, memory=st.session_state.memory)
+#     query = st.chat_input("Ask a question about Indian Nobel laureates:")
+
+#     if query:
+#         with st.spinner("Thinking..."):
+#             answer = chain({"question": query})["answer"]
+#         st.session_state.chat_history.append(("You", query))
+#         st.session_state.chat_history.append(("Bot", answer))
+        
+if "memory" not in st.session_state:
+    st.session_state.memory = ConversationBufferMemory(
+        memory_key="chat_history",
+        return_messages=True,
+        output_key="answer")
+
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
     
+st.subheader("Web Search Mode")
 
-#=========== STATIC KB MODE ==============
-if mode == "Static KB Mode":
-    st.subheader("Static Knowledge Base Mode")
-    # initialize memory
-    if "memory" not in st.session_state:
-        st.session_state.memory = ConversationBufferMemory(
-            memory_key="chat_history",
-            return_messages=True,
-            output_key="answer")
+# Load DuckDuckGo tool
+search_tool = web_search_tool()
+query = st.chat_input("Ask anything (web search enabled):")
 
-    @st.cache_resource(show_spinner=True)
-    def load_vectorstore():
-        try:
-            vs = FAISS.load_local(
-                "./data",
-                embeddings=HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2"),
-                allow_dangerous_deserialization=True
-            )
-            return vs
-        except:
-            kb = populate_kb()
-            vs = build_vs(kb)
-            return vs
-
-    vectorstore = load_vectorstore()
-
-    # Build Conversational retrieval Chain
-    chain = qa_chain(vectorstore, memory=st.session_state.memory)
-    query = st.chat_input("Ask a question about Indian Nobel laureates:")
-
-    if query:
-        with st.spinner("Thinking..."):
-            answer = chain({"question": query})["answer"]
-        st.session_state.chat_history.append(("You", query))
-        st.session_state.chat_history.append(("Bot", answer))
-        
-
-#=========== WEB SEARCH MODE =============
-elif mode == "Web Search Mode":
-    st.subheader("Web Search Mode")
-    
-    if "memory" not in st.session_state:
-        st.session_state.memory = ConversationBufferMemory(
-            memory_key="chat_history",
-            return_messages=True,
-            output_key="answer")
-
-    # Load DuckDuckGo tool
-    search_tool = web_search_tool()
-    query = st.chat_input("Ask anything (web search enabled):")
-
-    if query:
-        with st.spinner("Searching & thinking..."):
-            answer = web_qa_chain(
-                question=query,
-                search_tool=search_tool,
-                memory=st.session_state.memory
-            )
-        st.session_state.chat_history.append(("You", query))
-        st.session_state.chat_history.append(("Bot", answer))
+if query:
+    with st.spinner("Searching & thinking..."):
+        answer = web_qa_chain(
+            question=query,
+            search_tool=search_tool,
+            memory=st.session_state.memory
+        )
+    st.session_state.chat_history.append(("You", query))
+    st.session_state.chat_history.append(("Bot", answer))
         
 # Display Chat
 for speaker, msg in st.session_state.chat_history:
@@ -103,6 +99,7 @@ for speaker, msg in st.session_state.chat_history:
         st.chat_message("user").write(msg)
     else:
         st.chat_message("assistant").write(msg)
+
 
 
 
