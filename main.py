@@ -171,12 +171,9 @@ def web_qa_chain(question, search_tool, memory):
   #prompt definition
   
   prompt = PromptTemplate(
-      input_variables=["chat_history", "question", "search_results"],
+      input_variables=["question", "search_results"],
       template="""
-  You are a helpful assistant. Use the chat history when needed.
-
-  Chat history:
-  {chat_history}
+  You are a helpful assistant. Use the search results to answer the question
 
   Search results:
   {search_results}
@@ -188,25 +185,18 @@ def web_qa_chain(question, search_tool, memory):
   rewrite_prompt = PromptTemplate(
       input_variables=["chat_history", "question"],
       template="""
-  Given the conversation below, rewrite the user question so that
-  all pronouns and references are resolved with full context.
+  Given the conversation below, rewrite the user question so that all pronouns and references are resolved with full context.
 
   Chat history:
   {chat_history}
 
   Original question: {question}
 
-  Ouput: Brief rewritten question only
-
-  Rewritten question (fully qualified, no pronouns):
+  Ouput: Brief rewritten question only, fully qualified, no pronouns
   """
   )
   # LLM chain
-  chain = LLMChain(
-      llm=llm,
-      prompt=prompt,
-      memory=memory)
-
+  chain = LLMChain(llm=llm, prompt=prompt)
   rewriter_chain = LLMChain(llm=llm, prompt=rewrite_prompt)
   
   chat_history = memory.buffer
