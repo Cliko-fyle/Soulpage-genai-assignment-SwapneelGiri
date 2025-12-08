@@ -15,71 +15,6 @@ from langchain_core.tools import Tool
 import streamlit as st
 
 
-
-# =============STATIC KNOWLEDGE BASE===============
-
-# function to build knowledge base
-def populate_kb():
-
-  laureates = [
-      "Rabindranath Tagore",
-      "C. V. Raman",
-      "Har Gobind Khorana",
-      "Mother Teresa",
-      "Amartya Sen",
-      "Kailash Satyarthi",
-      "Venkatraman Ramakrishnan",
-      "Abhijit Banerjee",
-      "Subrahmanyan Chandrasekhar",
-      "Ronald Ross"
-      ] # 10 indian nobel laureates
-  kb = []
-
-  wiki = wikipediaapi.Wikipedia(user_agent = "swapneelgiri5@gmail.com", language = "en")
-
-  for name in laureates:
-    page = wiki.page(name)
-
-    if not page.exists():
-      print(f"page not found for {name}")
-      continue
-    entry = {
-          "name": name,
-          "content": page.text,
-          "url": page.fullurl
-      }
-    kb.append(entry)
-    print(f"Added: {name} → {page.title}")
-  return kb
-
-# function to build vectorstore
-def build_vs(kb):
-  embedding_model = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-  splitter = RecursiveCharacterTextSplitter(
-      chunk_size = 1000,
-      chunk_overlap = 200
-  )
-
-  docs = []
-  for entry in kb:
-    pieces = splitter.split_text(entry["content"])
-    for chunk in pieces:
-      docs.append({
-          "text": chunk,
-          "metadata": {"name": entry["name"]}
-          })
-
-  texts = [d["text"] for d in docs]
-  metadatas = [d["metadata"] for d in docs]
-
-  vectorstore = FAISS.from_texts(
-      texts = texts,
-      embedding = embedding_model,
-      metadatas = metadatas)
-  vectorstore.save_local("./data")
-
-  return vectorstore
-
 # Conversational Bot with Memory
 groq_api_key = st.secrets["groq_api_key"]
 
@@ -89,72 +24,12 @@ llm = ChatOpenAI(
     base_url="https://api.groq.com/openai/v1",
     api_key=groq_api_key,
     temperature = 0.0,
-    top_p = 0.3,
+    top_p = 0.7,
     max_completion_tokens = 100)
 
-prompt_template = """
-You are a factual question-answer assistant specializing in Indian Nobel laureates.
-Use ONLY the retrieved context. Never guess or hallucinate.
-
-If the user uses pronouns like "he", "she", or "they", assume they refer to the person mentioned earlier in the conversation.
-
-If the context doesn't contain the answer, say "I don't know".
-
-Context:
-{context}
-
-Chat History:
-{chat_history}
-
-Question: {question}
-
-Answer:
-"""
-qa_prompt = PromptTemplate(
-    input_variables = ["context", "chat_history", "question"],
-    template = prompt_template,
-)
-
-# function to build Q&A chain
-def qa_chain(vectorstore, memory = None):
-  # conversational memory
-  if memory is None:
-    memory = ConversationBufferMemory(
-        memory_key = "chat_history",
-        return_messages = True,
-        output_key="answer"
-        )
-
-  retriever = vectorstore.as_retriever(search_kwargs = {"k": 8})
-
-  retriever_chain = ConversationalRetrievalChain.from_llm(
-      llm = llm,
-      retriever = retriever,
-      memory = memory,
-      combine_docs_chain_kwargs={"prompt": qa_prompt},
-      return_source_documents=False
-      )
-  return retriever_chain
-
-# function to ask question
-def ask(question):
-  ans = chain({"question": question})
-  return ans["answer"]
-
-# Run Q&A bot
-# vectorestore = build_vs(populate_kb())
-
-# vectorstore = FAISS.load_local(
-#     "./data",
-#     embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2"),
-#     allow_dangerous_deserialization=True
-# )
-# chain = qa_chain(vectorstore)
-
-# ============= WEB SEARCH ===============
-# function to build a web search tool using DuckDuckGo
+# function to build the web search tool using DuckDuckGo
 def web_search_tool():
-  # Initialize search
+  # initialize search
   search = DuckDuckGoSearchAPIWrapper()
 
   # Define search tool
@@ -165,64 +40,182 @@ def web_search_tool():
   )
   return search_tool
 
-# function to build the web Q&A chain
-def web_qa_chain(question, search_tool, memory):
-
-  #prompt definition
-  
+#function to define the qa chain
+def web_qa_chain(question, search_tool, memory):  
   prompt = PromptTemplate(
-      input_variables=["question", "search_results"],
-      template="""
+    input_variables=["question", "search_results"],
+    template="""
   You are a helpful assistant. Use the search results to answer the question
-
+  
   Search results:
   {search_results}
-
+  
   Answer concisely.
   Question: {question}
   """
   )
- rewrite_prompt = PromptTemplate(
-    input_variables=["chat_history", "question"],
-    template="""
-You are a utility that REWRITES questions.
-
-Your task:
-- Replace all pronouns (he, she, it, they, him, her, etc.) with the actual named entity from the chat history.
-- DO NOT explain anything.
-- DO NOT answer the question.
-- DO NOT add new information.
-- ONLY output the rewritten question as a single line.
-
-Chat history:
-{chat_history}
-
-Original question:
-{question}
-
-Rewritten question (ONLY the rewritten question, no extra text):
-"""
+  
+  rewrite_prompt = PromptTemplate(
+  input_variables=["chat_history", "question"],
+  template="""
+  Given the conversation below, rewrite the user question so that
+  all pronouns and references are resolved with full context.
+  
+  Chat history:
+  {chat_history}
+  
+  Original question: {question}
+  
+  Output: Brief rewritten question only
+  """
   )
+  
   # LLM chain
   chain = LLMChain(llm=llm, prompt=prompt)
   rewriter_chain = LLMChain(llm=llm, prompt=rewrite_prompt)
   
   chat_history = memory.buffer
-
+  
   # rewrite the user question using history and llm
   rewritten = rewriter_chain.run(
-      chat_history=chat_history,
-      question=question
+    chat_history=chat_history,
+    question=question
   ).strip()
-
+  
   # search the web with the rewritten question
-  print(f"Searching: {question}")
+  print(f"Searching: {rewritten}")
   results = search_tool.run(rewritten)
-
+  
   context = "\n".join(
-      [f"[{i+1}] {r['title']}: {r['snippet']}" for i, r in enumerate(results)]
+    [f"[{i+1}] {r['title']}: {r['snippet']}" for i, r in enumerate(results)]
   )
-
+  
   response = chain.run(question=rewritten, search_results=context)
+  
+  # save the conversation to memory
+  memory.save_context(
+    {"question": question},
+    {"output": response}
+  )
+  
   return response
+
+
+
+
+
+# # =============STATIC KNOWLEDGE BASE===============
+
+# # function to build knowledge base
+# def populate_kb():
+
+#   laureates = [
+#       "Rabindranath Tagore",
+#       "C. V. Raman",
+#       "Har Gobind Khorana",
+#       "Mother Teresa",
+#       "Amartya Sen",
+#       "Kailash Satyarthi",
+#       "Venkatraman Ramakrishnan",
+#       "Abhijit Banerjee",
+#       "Subrahmanyan Chandrasekhar",
+#       "Ronald Ross"
+#       ] # 10 indian nobel laureates
+#   kb = []
+
+#   wiki = wikipediaapi.Wikipedia(user_agent = "swapneelgiri5@gmail.com", language = "en")
+
+#   for name in laureates:
+#     page = wiki.page(name)
+
+#     if not page.exists():
+#       print(f"page not found for {name}")
+#       continue
+#     entry = {
+#           "name": name,
+#           "content": page.text,
+#           "url": page.fullurl
+#       }
+#     kb.append(entry)
+#     print(f"Added: {name} → {page.title}")
+#   return kb
+
+# # function to build vectorstore
+# def build_vs(kb):
+#   embedding_model = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+#   splitter = RecursiveCharacterTextSplitter(
+#       chunk_size = 1000,
+#       chunk_overlap = 200
+#   )
+
+#   docs = []
+#   for entry in kb:
+#     pieces = splitter.split_text(entry["content"])
+#     for chunk in pieces:
+#       docs.append({
+#           "text": chunk,
+#           "metadata": {"name": entry["name"]}
+#           })
+
+#   texts = [d["text"] for d in docs]
+#   metadatas = [d["metadata"] for d in docs]
+
+#   vectorstore = FAISS.from_texts(
+#       texts = texts,
+#       embedding = embedding_model,
+#       metadatas = metadatas)
+#   vectorstore.save_local("./data")
+
+#   return vectorstore
+
+
+# prompt_template = """
+# You are a factual question-answer assistant specializing in Indian Nobel laureates.
+# Use ONLY the retrieved context. Never guess or hallucinate.
+
+# If the user uses pronouns like "he", "she", or "they", assume they refer to the person mentioned earlier in the conversation.
+
+# If the context doesn't contain the answer, say "I don't know".
+
+# Context:
+# {context}
+
+# Chat History:
+# {chat_history}
+
+# Question: {question}
+
+# Answer:
+# """
+# qa_prompt = PromptTemplate(
+#     input_variables = ["context", "chat_history", "question"],
+#     template = prompt_template,
+# )
+
+# # function to build Q&A chain
+# def qa_chain(vectorstore, memory = None):
+#   # conversational memory
+#   if memory is None:
+#     memory = ConversationBufferMemory(
+#         memory_key = "chat_history",
+#         return_messages = True,
+#         output_key="answer"
+#         )
+
+#   retriever = vectorstore.as_retriever(search_kwargs = {"k": 8})
+
+#   retriever_chain = ConversationalRetrievalChain.from_llm(
+#       llm = llm,
+#       retriever = retriever,
+#       memory = memory,
+#       combine_docs_chain_kwargs={"prompt": qa_prompt},
+#       return_source_documents=False
+#       )
+#   return retriever_chain
+
+# # function to ask question
+# def ask(question):
+#   ans = chain({"question": question})
+#   return ans["answer"]
+
 
