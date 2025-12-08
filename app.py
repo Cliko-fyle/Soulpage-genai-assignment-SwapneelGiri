@@ -76,7 +76,7 @@ if mode == "Static KB Mode":
         
 
 #=========== WEB SEARCH MODE =============
-else:
+elif mode == "Web Search Mode":
     st.subheader("Web Search Mode")
 
     # Load DuckDuckGo tool
@@ -99,4 +99,5 @@ for speaker, msg in st.session_state.chat_history:
         st.chat_message("user").write(msg)
     else:
         st.chat_message("assistant").write(msg)
+
 
