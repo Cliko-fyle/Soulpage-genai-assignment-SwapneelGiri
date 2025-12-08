@@ -6,11 +6,17 @@ from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_core.documents import Document
 from langchain_classic.memory import ConversationBufferMemory
-from langchain_classic.chains import ConversationalRetrievalChain
+from langchain_classic.chains import ConversationalRetrievalChain, LLMChain
 from langchain_community.llms import HuggingFacePipeline
 from langchain_core.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI
+from langchain_community.utilities import DuckDuckGoSearchAPIWrapper
+from langchain_core.tools import Tool
 import streamlit as st
+
+
+
+# =============STATIC KNOWLEDGE BASE===============
 
 # function to build knowledge base
 def populate_kb():
@@ -136,16 +142,88 @@ def ask(question):
   return ans["answer"]
 
 # Run Q&A bot
-vectorestore = build_vs(populate_kb())
+# vectorestore = build_vs(populate_kb())
 
-vectorstore = FAISS.load_local(
-    "./data",
-    embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2"),
-    allow_dangerous_deserialization=True
-)
+# vectorstore = FAISS.load_local(
+#     "./data",
+#     embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2"),
+#     allow_dangerous_deserialization=True
+# )
+# chain = qa_chain(vectorstore)
 
+# ============= WEB SEARCH ===============
+# function to build a web search tool using DuckDuckGo
+def web_search_tool():
+  # Initialize search
+  search = DuckDuckGoSearchAPIWrapper()
 
-chain = qa_chain(vectorstore)
+  # Define search tool
+  search_tool = Tool(
+      name="web_search",
+      description="Search the web for current information",
+      func=lambda query: search.results(query, max_results=3)
+  )
+  return search_tool
 
+# function to build the web Q&A chain
+def web_qa_chain(question, search_tool, memory):
 
+  #prompt definition
+  
+  prompt = PromptTemplate(
+      input_variables=["chat_history", "question", "search_results"],
+      template="""
+  You are a helpful assistant. Use the chat history when needed.
 
+  Chat history:
+  {chat_history}
+
+  Search results:
+  {search_results}
+
+  Answer concisely.
+  Question: {question}
+  """
+  )
+  rewrite_prompt = PromptTemplate(
+      input_variables=["chat_history", "question"],
+      template="""
+  Given the conversation below, rewrite the user question so that
+  all pronouns and references are resolved with full context.
+
+  Chat history:
+  {chat_history}
+
+  Original question: {question}
+
+  Ouput: Brief rewritten question only
+
+  Rewritten question (fully qualified, no pronouns):
+  """
+  )
+  # LLM chain
+  chain = LLMChain(
+      llm=llm,
+      prompt=prompt,
+      memory=memory)
+
+  rewriter_chain = LLMChain(llm=llm, prompt=rewrite_prompt)
+  
+  chat_history = memory.buffer
+
+  # rewrite the user question using history and llm
+  rewritten = rewriter_chain.run(
+      chat_history=chat_history,
+      question=question
+  ).strip()
+
+  # search the web with the rewritten question
+  print(f"Searching: {question}")
+  results = search_tool.run(rewritten)
+
+  context = "\n".join(
+      [f"[{i+1}] {r['title']}: {r['snippet']}" for i, r in enumerate(results)]
+  )
+
+  response = chain.run(question=rewritten, search_results=context)
+  return response
