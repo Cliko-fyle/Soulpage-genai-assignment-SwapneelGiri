@@ -78,10 +78,4 @@ The assistant can:
 ```
 **EXAMPLE USAGE**
 
-`User:` Who is the CEO of Apple?
-
-`Bot:` The CEO of Apple is Tim Cook.
-
-`User:` When was he born?
-
-`Bot:` Tim Cook was born on November 1, 1960.  
+<img width="500" height="400" alt="Screenshot 2025-12-08 230737" src="https://github.com/user-attachments/assets/2f4ea57e-3702-4b7d-ab0c-018b6dec1a24" />
