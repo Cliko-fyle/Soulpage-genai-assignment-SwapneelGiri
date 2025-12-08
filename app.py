@@ -31,14 +31,6 @@ mode = st.radio(
 
 st.divider()
 
-# initialize memory
-if "memory" not in st.session_state:
-    st.session_state.memory = ConversationBufferMemory(
-        memory_key="chat_history",
-        return_messages=True,
-        output_key="answer"
-    )
-
 # Initialize chat history UI
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
@@ -47,6 +39,12 @@ if "chat_history" not in st.session_state:
 #=========== STATIC KB MODE ==============
 if mode == "Static KB Mode":
     st.subheader("Static Knowledge Base Mode")
+    # initialize memory
+    if "memory" not in st.session_state:
+        st.session_state.memory = ConversationBufferMemory(
+            memory_key="chat_history",
+            return_messages=True,
+            output_key="answer")
 
     @st.cache_resource(show_spinner=True)
     def load_vectorstore():
@@ -78,6 +76,11 @@ if mode == "Static KB Mode":
 #=========== WEB SEARCH MODE =============
 elif mode == "Web Search Mode":
     st.subheader("Web Search Mode")
+    if "memory" not in st.session_state:
+    st.session_state.memory = ConversationBufferMemory(
+        memory_key="chat_history",
+        return_messages=True,
+        output_key="answer")
 
     # Load DuckDuckGo tool
     search_tool = web_search_tool()
@@ -99,5 +102,6 @@ for speaker, msg in st.session_state.chat_history:
         st.chat_message("user").write(msg)
     else:
         st.chat_message("assistant").write(msg)
+
 
 
