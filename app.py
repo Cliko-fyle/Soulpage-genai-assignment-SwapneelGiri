@@ -25,7 +25,8 @@ Choose how you want the bot to answer your questions.
 #============ MODE SELEcTION ============
 mode = st.radio(
     "Select Mode:",
-    ["Static KB Mode", "Web Search Mode"]
+    ["Static KB Mode", "Web Search Mode"],
+    index = None
 )
 
 st.divider()
@@ -98,3 +99,4 @@ for speaker, msg in st.session_state.chat_history:
         st.chat_message("user").write(msg)
     else:
         st.chat_message("assistant").write(msg)
+
