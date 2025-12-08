@@ -4,8 +4,8 @@ from main import (
     populate_kb,
     build_vs,
     qa_chain,
-    ask,
-    ChatOpenAI,
+    web_search_tool,
+    web_qa_chain,
     FAISS,
     HuggingFaceEmbeddings
 )
@@ -19,27 +19,18 @@ st.set_page_config(
 st.title("Conversational Knowledge Bot")
 
 st.write("""
-Ask anything about Indian Nobel laureates!
+Choose how you want the bot to answer your questions.
 """)
 
-# Load Vectorstore
-@st.cache_resource(show_spinner=True)
-def load_vectorstore():
-    try:
-        vs = FAISS.load_local(
-            "./data",
-            embeddings=HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2"),
-            allow_dangerous_deserialization=True
-        )
-        return vs
-    except:
-        # first time: populate and build
-        kb = populate_kb()
-        vs = build_vs(kb)
-        return vs
+#============ MODE SELEcTION ============
+mode = st.radio(
+    "Select Mode:",
+    ["Static KB Mode", "Web Search Mode"]
+)
 
-vectorstore = load_vectorstore()
+st.divider()
 
+# initialize memory
 if "memory" not in st.session_state:
     st.session_state.memory = ConversationBufferMemory(
         memory_key="chat_history",
@@ -47,28 +38,63 @@ if "memory" not in st.session_state:
         output_key="answer"
     )
 
-# Create QA Chain with persistent memory
-chain = qa_chain(vectorstore, memory=st.session_state.memory)
-
+# Initialize chat history UI
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
+    
 
-query = st.chat_input("Ask a question:")
+#=========== STATIC KB MODE ==============
+if mode == "Static KB Mode":
+    st.subheader("Static Knowledge Base Mode")
 
-if query:
-    with st.spinner("Thinking..."):
-        answer = chain({"question": query})["answer"]
+    @st.cache_resource(show_spinner=True)
+    def load_vectorstore():
+        try:
+            vs = FAISS.load_local(
+                "./data",
+                embeddings=HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2"),
+                allow_dangerous_deserialization=True
+            )
+            return vs
+        except:
+            kb = populate_kb()
+            vs = build_vs(kb)
+            return vs
 
-    # update chat UI memory
-    st.session_state.chat_history.append(("You", query))
-    st.session_state.chat_history.append(("Bot", answer))
+    vectorstore = load_vectorstore()
 
+    # Build Conversational retrieval Chain
+    chain = qa_chain(vectorstore, memory=st.session_state.memory)
+    query = st.chat_input("Ask a question about Indian Nobel laureates:")
+
+    if query:
+        with st.spinner("Thinking..."):
+            answer = chain({"question": query})["answer"]
+        st.session_state.chat_history.append(("You", query))
+        st.session_state.chat_history.append(("Bot", answer))
+        
+
+#=========== WEB SEARCH MODE =============
+else:
+    st.subheader("Web Search Mode")
+
+    # Load DuckDuckGo tool
+    search_tool = web_search_tool()
+    query = st.chat_input("Ask anything (web search enabled):")
+
+    if query:
+        with st.spinner("Searching & thinking..."):
+            answer = web_qa_chain(
+                question=query,
+                search_tool=search_tool,
+                memory=st.session_state.memory
+            )
+        st.session_state.chat_history.append(("You", query))
+        st.session_state.chat_history.append(("Bot", answer))
+        
 # Display Chat
 for speaker, msg in st.session_state.chat_history:
     if speaker == "You":
         st.chat_message("user").write(msg)
     else:
         st.chat_message("assistant").write(msg)
-
-
-
