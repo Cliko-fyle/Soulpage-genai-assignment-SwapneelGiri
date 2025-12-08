@@ -76,11 +76,12 @@ if mode == "Static KB Mode":
 #=========== WEB SEARCH MODE =============
 elif mode == "Web Search Mode":
     st.subheader("Web Search Mode")
+    
     if "memory" not in st.session_state:
-    st.session_state.memory = ConversationBufferMemory(
-        memory_key="chat_history",
-        return_messages=True,
-        output_key="answer")
+        st.session_state.memory = ConversationBufferMemory(
+            memory_key="chat_history",
+            return_messages=True,
+            output_key="answer")
 
     # Load DuckDuckGo tool
     search_tool = web_search_tool()
@@ -102,6 +103,7 @@ for speaker, msg in st.session_state.chat_history:
         st.chat_message("user").write(msg)
     else:
         st.chat_message("assistant").write(msg)
+
 
 
 
