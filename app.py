@@ -7,8 +7,7 @@ from main import (
     web_search_tool,
     web_qa_chain,
     FAISS,
-    HuggingFaceEmbeddings
-)
+    HuggingFaceEmbeddings)
 
 # Streamlit Setup
 st.set_page_config(
@@ -18,9 +17,7 @@ st.set_page_config(
 
 st.title("Conversational Knowledge Bot")
 
-st.write("""
-Ask anything!
-""")
+st.write("""Ask anything!""")
 
 # #============ MODE SELEcTION ============
 # mode = st.radio(
@@ -99,9 +96,3 @@ for speaker, msg in st.session_state.chat_history:
         st.chat_message("user").write(msg)
     else:
         st.chat_message("assistant").write(msg)
-
-
-
-
-
-
